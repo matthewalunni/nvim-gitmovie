@@ -116,20 +116,21 @@ end
 function M.start(repo_path)
 	repo_path = repo_path or vim.fn.getcwd()
 
-    vim.notify("GitMovie: starting replay for repo " .. tostring(repo_path))
-    vim.notify("CWD: " .. vim.fn.getcwd())
+	vim.notify("GitMovie: starting replay for repo " .. tostring(repo_path))
+
 	if not repo_path or repo_path == "" then
-		vim.notify("GitMovie: please specify a repo path", vim.log.levels.ERROR)
-		return
+		M.repo = vim.fn.getcwd()
+	else
+		M.repo = repo_path
 	end
-	local commits = build_commits(repo_path)
+
+	local commits = build_commits(M.repo)
 	if vim.tbl_isempty(commits) then
 		vim.notify("GitMovie: no commits found", vim.log.levels.ERROR)
 		return
 	end
 	M._commits = commits
 	M._index = 1
-	M.repo = repo_path
 	M.stop() -- ensure clean
 	ensure_window()
 	M.timer = vim.loop.new_timer()
