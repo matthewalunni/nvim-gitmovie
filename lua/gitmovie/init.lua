@@ -1,6 +1,6 @@
 local M = {}
 M.repo = nil
-M.speed = 100 -- ms per frame
+M.speed = 3000 -- ms per frame
 M.timer = nil
 M.diff_buf = nil
 M.diff_win = nil
