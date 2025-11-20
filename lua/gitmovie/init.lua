@@ -2,8 +2,10 @@ local M = {}
 M.repo = nil
 M.speed = 3000 -- ms per frame
 M.timer = nil
-M.diff_buf = nil
-M.diff_win = nil
+M.left_buf = nil
+M.right_buf = nil
+M.left_win = nil
+M.right_win = nil
 M.ns = vim.api.nvim_create_namespace("gitmovie")
 
 -- track commits and positions
@@ -12,36 +14,73 @@ M._index = 1 -- next-to-show index when playing
 M._current = 0 -- last shown index
 M._mapped = false
 
--- Ensure a floating window is ready to display frames
-local function ensure_window()
-	if M.diff_win and vim.api.nvim_win_is_valid(M.diff_win) then
-		vim.api.nvim_set_current_win(M.diff_win)
+-- Create vertical split: left meta, right diff
+local function ensure_split()
+	if
+		M.left_win
+		and vim.api.nvim_win_is_valid(M.left_win)
+		and M.right_win
+		and vim.api.nvim_win_is_valid(M.right_win)
+	then
+		vim.api.nvim_set_current_win(M.right_win)
 		return
 	end
-	local buf = vim.api.nvim_create_buf(false, true)
-	local width = math.floor(vim.o.columns * 0.9)
-	local height = math.floor(vim.o.lines * 0.8)
-	local row = math.floor((vim.o.lines - height) / 2)
-	local col = math.floor((vim.o.columns - width) / 2)
-	local win = vim.api.nvim_open_win(buf, true, {
-		relative = "editor",
-		width = width,
-		height = height,
-		row = row,
-		col = col,
-		style = "minimal",
-	})
-	M.diff_buf = buf
-	M.diff_win = win
-	vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
-	vim.api.nvim_buf_set_option(buf, "filetype", "gitmovie")
-	vim.api.nvim_buf_set_option(buf, "modifiable", true)
+	local left_buf = vim.api.nvim_create_buf(false, true)
+	local right_buf = vim.api.nvim_create_buf(false, true)
+	vim.api.nvim_buf_set_option(left_buf, "bufhidden", "wipe")
+	vim.api.nvim_buf_set_option(left_buf, "filetype", "gitmovie-left")
+	vim.api.nvim_buf_set_option(left_buf, "modifiable", false)
+	vim.api.nvim_buf_set_option(right_buf, "bufhidden", "wipe")
+	vim.api.nvim_buf_set_option(right_buf, "filetype", "gitmovie")
+	vim.api.nvim_buf_set_option(right_buf, "modifiable", true)
 
-	-- buffer-local mappings for navigation: use counts like 3l or 2h
+	vim.cmd("vsplit")
+	local left_win = vim.api.nvim_get_current_win()
+	vim.api.nvim_win_set_buf(left_win, left_buf)
+	vim.cmd("wincmd l")
+	local right_win = vim.api.nvim_get_current_win()
+	vim.api.nvim_win_set_buf(right_win, right_buf)
+
+	local left_width = math.max(24, math.floor(vim.o.columns * 0.25))
+	vim.api.nvim_win_set_width(left_win, left_width)
+	vim.api.nvim_win_set_width(right_win, vim.o.columns - left_width)
+
+	M.left_buf = left_buf
+	M.left_win = left_win
+	M.right_buf = right_buf
+	M.right_win = right_win
+
 	if not M._mapped then
-		vim.api.nvim_buf_set_keymap(buf, 'n', 'l', '<cmd>lua require("gitmovie")._on_nav(vim.v.count1)<CR>', {noremap=true, silent=true})
-		vim.api.nvim_buf_set_keymap(buf, 'n', 'h', '<cmd>lua require("gitmovie")._on_nav(-vim.v.count1)<CR>', {noremap=true, silent=true})
-		vim.api.nvim_buf_set_keymap(buf, 'n', 'q', '<cmd>lua require("gitmovie").stop()<CR>', {noremap=true, silent=true})
+		vim.api.nvim_buf_set_keymap(
+			right_buf,
+			"n",
+			"l",
+			"<cmd>lua require('gitmovie')._on_nav(vim.v.count1)<CR>",
+			{ noremap = true, silent = true }
+		)
+		vim.api.nvim_buf_set_keymap(
+			right_buf,
+			"n",
+			"h",
+			"<cmd>lua require('gitmovie')._on_nav(-vim.v.count1)<CR>",
+			{ noremap = true, silent = true }
+		)
+		vim.api.nvim_buf_set_keymap(
+			right_buf,
+			"n",
+			"q",
+			"<cmd>lua require('gitmovie').stop()<CR>",
+			{ noremap = true, silent = true }
+		)
+		-- help mapping
+		vim.api.nvim_buf_set_keymap(
+			right_buf,
+			"n",
+			"g?",
+			"<cmd>lua require('gitmovie').show_help()<CR>",
+			{ noremap = true, silent = true }
+		)
+
 		M._mapped = true
 	end
 end
@@ -73,9 +112,7 @@ local function diff_lines(repo, hash)
 	end
 	local lines = {}
 	for line in string.gmatch(out, "[^\n]+") do
-		if line:match("^diff ") or line:match("^index ") or line:match("^---") or line:match("^+++") then
-		-- skip header lines
-		else
+		if not (line:match("^diff ") or line:match("^index ") or line:match("^---") or line:match("^+++")) then
 			local l = line
 			if l == "" then
 				l = " "
@@ -86,12 +123,11 @@ local function diff_lines(repo, hash)
 	return lines
 end
 
-local function render(lines)
-	ensure_window()
-	vim.api.nvim_buf_set_lines(M.diff_buf, 0, -1, false, lines)
-	vim.api.nvim_buf_clear_namespace(M.diff_buf, M.ns, 0, -1)
+local function render_right(lines)
+	vim.api.nvim_buf_set_lines(M.right_buf, 0, -1, false, lines)
+	vim.api.nvim_buf_clear_namespace(M.right_buf, M.ns, 0, -1)
 	for i, l in ipairs(lines) do
-		local hl = nil
+		local hl
 		if l:sub(1, 1) == "+" then
 			hl = "GitMovieAdd"
 		elseif l:sub(1, 1) == "-" then
@@ -100,34 +136,77 @@ local function render(lines)
 			hl = "GitMovieCtx"
 		end
 		if hl then
-			vim.api.nvim_buf_add_highlight(M.diff_buf, M.ns, hl, i - 1, 0, -1)
+			vim.api.nvim_buf_add_highlight(M.right_buf, M.ns, hl, i - 1, 0, -1)
 		end
 	end
 end
 
--- Show a specific commit index (1-based)
+local function render_left(lines)
+	if not M.left_buf or not vim.api.nvim_buf_is_valid(M.left_buf) then
+		return
+	end
+	vim.api.nvim_buf_set_lines(M.left_buf, 0, -1, false, lines)
+	vim.api.nvim_buf_clear_namespace(M.left_buf, M.ns, 0, -1)
+end
+
+local function update_left_for_commit(hash, subject, date, changes)
+	local repoName = vim.fn.fnamemodify(M.repo, ":t")
+	local left_lines = {
+		"Repo: " .. repoName,
+		"Commit: " .. hash .. " - " .. (subject or ""),
+	}
+	local date_str = date or ""
+	if date_str ~= "" then
+		date_str = date_str:gsub("\n", " ")
+	end
+	table.insert(left_lines, "Date: " .. date_str)
+	table.insert(left_lines, "")
+	table.insert(left_lines, "Changes:")
+	if changes and #changes > 0 then
+		for _, c in ipairs(changes) do
+			table.insert(left_lines, "  " .. c)
+		end
+	end
+	render_left(left_lines)
+end
+
 function M._show_index(idx)
 	if not M._commits or #M._commits == 0 then
 		return
 	end
-	if idx < 1 then idx = 1 end
-	if idx > #M._commits then idx = #M._commits end
+	if idx < 1 then
+		idx = 1
+	end
+	if idx > #M._commits then
+		idx = #M._commits
+	end
 	local hash = M._commits[idx]
 	local subject = vim.fn.system({ "git", "-C", M.repo, "log", "-1", "--pretty=format:%s", hash })
 	local header = string.format("Commit: %s - %s", hash, subject:gsub("\n", " "))
 	local diff = diff_lines(M.repo, hash)
-	local frame = {}
-	table.insert(frame, header)
+	local right_frame = {}
+	table.insert(right_frame, header)
 	for _, ln in ipairs(diff) do
-		table.insert(frame, ln)
+		table.insert(right_frame, ln)
 	end
-	render(frame)
+	render_right(right_frame)
 	M._current = idx
-	-- keep _index pointing to the next item if resumed
 	M._index = math.min(#M._commits, M._current + 1)
+
+	-- Update left meta pane
+	local date = vim.fn.system({ "git", "-C", M.repo, "log", "-1", "--format=%ad", "--date=short", hash })
+	local changes = {}
+	local ch_out = vim.fn.system({ "git", "-C", M.repo, "diff-tree", "--no-commit-id", "--name-status", "-r", hash })
+	if vim.v.shell_error == 0 and ch_out and ch_out ~= "" then
+		for s in string.gmatch(ch_out, "[^\n]+") do
+			if s ~= "" then
+				table.insert(changes, s)
+			end
+		end
+	end
+	update_left_for_commit(hash, subject, date, changes)
 end
 
--- Pause playback but keep window
 function M.pause()
 	if M.timer then
 		pcall(function()
@@ -137,9 +216,7 @@ function M.pause()
 	end
 end
 
--- Handle navigation invoked from mappings (delta may be negative)
 function M._on_nav(delta)
-	-- ensure we have commits
 	if not M._commits or #M._commits == 0 then
 		vim.notify("GitMovie: no commits to navigate", vim.log.levels.WARN)
 		return
@@ -147,12 +224,15 @@ function M._on_nav(delta)
 	M.pause()
 	local base = M._current
 	if base == 0 then
-		-- if nothing shown yet, use nearest index
 		base = math.max(1, math.min(#M._commits, M._index))
 	end
 	local newidx = base + (delta or 1)
-	if newidx < 1 then newidx = 1 end
-	if newidx > #M._commits then newidx = #M._commits end
+	if newidx < 1 then
+		newidx = 1
+	end
+	if newidx > #M._commits then
+		newidx = #M._commits
+	end
 	M._show_index(newidx)
 end
 
@@ -173,21 +253,26 @@ function M.stop()
 		end)
 		M.timer = nil
 	end
-	if M.diff_win and vim.api.nvim_win_is_valid(M.diff_win) then
-		vim.api.nvim_win_close(M.diff_win, true)
-		M.diff_win = nil
+	if M.right_win and vim.api.nvim_win_is_valid(M.right_win) then
+		vim.api.nvim_win_close(M.right_win, true)
+		M.right_win = nil
 	end
-	-- reset state
+	if M.left_win and vim.api.nvim_win_is_valid(M.left_win) then
+		vim.api.nvim_win_close(M.left_win, true)
+		M.left_win = nil
+	end
 	M._commits = {}
 	M._index = 1
 	M._current = 0
+	M.left_buf = nil
+	M.right_buf = nil
+	M.left_win = nil
+	M.right_win = nil
 end
 
 function M.start(repo_path)
 	repo_path = repo_path or vim.fn.getcwd()
-
 	vim.notify("GitMovie: starting replay for repo " .. tostring(repo_path))
-
 	if not repo_path or repo_path == "" then
 		M.repo = vim.fn.getcwd()
 	else
@@ -202,9 +287,11 @@ function M.start(repo_path)
 	M._commits = commits
 	M._index = 1
 	M._current = 0
-	M.pause() -- ensure clean timer
-	ensure_window()
+
+	M.pause()
+	ensure_split()
 	M.timer = vim.loop.new_timer()
+
 	local function frame_step()
 		if not M._commits or M._index > #M._commits then
 			M.stop()
@@ -212,28 +299,52 @@ function M.start(repo_path)
 			return
 		end
 		local idx = M._index
-		-- render commit at idx
 		local hash = M._commits[idx]
 		local subject = vim.fn.system({ "git", "-C", repo_path, "log", "-1", "--pretty=format:%s", hash })
 		local header = string.format("Commit: %s - %s", hash, subject:gsub("\n", " "))
 		local diff = diff_lines(repo_path, hash)
-		local frame = {}
-		table.insert(frame, header)
+		local right_frame = {}
+		table.insert(right_frame, header)
 		for _, ln in ipairs(diff) do
-			table.insert(frame, ln)
+			table.insert(right_frame, ln)
 		end
-		render(frame)
+		render_right(right_frame)
 		M._current = idx
 		M._index = M._index + 1
+		-- refresh left meta for current commit
+		local date = vim.fn.system({ "git", "-C", M.repo, "log", "-1", "--format=%ad", "--date=short", hash })
+		local changes = {}
+		local ch_out =
+			vim.fn.system({ "git", "-C", M.repo, "diff-tree", "--no-commit-id", "--name-status", "-r", hash })
+		if vim.v.shell_error == 0 and ch_out and ch_out ~= "" then
+			for s in string.gmatch(ch_out, "[^\n]+") do
+				if s ~= "" then
+					table.insert(changes, s)
+				end
+			end
+		end
+		update_left_for_commit(hash, subject, date, changes)
 		if M._index > #M._commits then
 			vim.defer_fn(function()
 				M.stop()
 			end, 400)
 		end
 	end
+
 	M.timer:start(0, M.speed, function()
 		vim.schedule(frame_step)
 	end)
+end
+
+function M.show_help()
+	local help_lines = {
+		"GitMovie Controls:",
+		"l - next commit",
+		"h - previous commit",
+		"q - quit",
+		"g? - show this help",
+	}
+	render_left(help_lines)
 end
 
 return M
