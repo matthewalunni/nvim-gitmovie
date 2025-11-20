@@ -15,3 +15,8 @@ vim.api.nvim_create_user_command('GitMovieSpeed', function(opts)
   local n = tonumber(opts.args)
   require('gitmovie').set_speed(n or 100)
 end, {nargs='?'})
+
+-- Open-only viewer (no playback). Optional repo path as argument.
+vim.api.nvim_create_user_command('GitMovie', function(opts)
+  require('gitmovie').open_view(opts and opts.args or nil)
+end, {nargs='?'})

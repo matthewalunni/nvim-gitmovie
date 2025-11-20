@@ -16,12 +16,8 @@ M._mapped = false
 
 -- Create vertical split: left meta, right diff
 local function ensure_split()
-	if
-		M.left_win
-		and vim.api.nvim_win_is_valid(M.left_win)
-		and M.right_win
-		and vim.api.nvim_win_is_valid(M.right_win)
-	then
+	if M.left_win and vim.api.nvim_win_is_valid(M.left_win)
+		and M.right_win and vim.api.nvim_win_is_valid(M.right_win) then
 		vim.api.nvim_set_current_win(M.right_win)
 		return
 	end
@@ -52,31 +48,23 @@ local function ensure_split()
 
 	if not M._mapped then
 		vim.api.nvim_buf_set_keymap(
-			right_buf,
-			"n",
-			"l",
+			right_buf, "n", "j",
 			"<cmd>lua require('gitmovie')._on_nav(vim.v.count1)<CR>",
 			{ noremap = true, silent = true }
 		)
 		vim.api.nvim_buf_set_keymap(
-			right_buf,
-			"n",
-			"h",
+			right_buf, "n", "h",
 			"<cmd>lua require('gitmovie')._on_nav(-vim.v.count1)<CR>",
 			{ noremap = true, silent = true }
 		)
 		vim.api.nvim_buf_set_keymap(
-			right_buf,
-			"n",
-			"q",
+			right_buf, "n", "q",
 			"<cmd>lua require('gitmovie').stop()<CR>",
 			{ noremap = true, silent = true }
 		)
 		-- help mapping
 		vim.api.nvim_buf_set_keymap(
-			right_buf,
-			"n",
-			"g?",
+			right_buf, "n", "g?",
 			"<cmd>lua require('gitmovie').show_help()<CR>",
 			{ noremap = true, silent = true }
 		)
@@ -96,9 +84,7 @@ local function build_commits(repo)
 	end
 	local lines = {}
 	for s in string.gmatch(out, "[^\n]+") do
-		if s ~= "" then
-			table.insert(lines, s)
-		end
+		if s ~= "" then table.insert(lines, s) end
 	end
 	return lines
 end
@@ -107,16 +93,12 @@ end
 local function diff_lines(repo, hash)
 	local cmd = { "git", "-C", repo, "show", "--unified=4", hash }
 	local out = vim.fn.system(cmd)
-	if vim.v.shell_error ~= 0 then
-		return {}
-	end
+	if vim.v.shell_error ~= 0 then return {} end
 	local lines = {}
 	for line in string.gmatch(out, "[^\n]+") do
-		if not (line:match("^diff ") or line:match("^index ") or line:match("^---") or line:match("^+++")) then
+		if not (line:match("^diff ") or line:match("^index ") or line:match("^---") or line:match("^+++") ) then
 			local l = line
-			if l == "" then
-				l = " "
-			end
+			if l == "" then l = " " end
 			table.insert(lines, l)
 		end
 	end
@@ -128,16 +110,10 @@ local function render_right(lines)
 	vim.api.nvim_buf_clear_namespace(M.right_buf, M.ns, 0, -1)
 	for i, l in ipairs(lines) do
 		local hl
-		if l:sub(1, 1) == "+" then
-			hl = "GitMovieAdd"
-		elseif l:sub(1, 1) == "-" then
-			hl = "GitMovieDel"
-		else
-			hl = "GitMovieCtx"
-		end
-		if hl then
-			vim.api.nvim_buf_add_highlight(M.right_buf, M.ns, hl, i - 1, 0, -1)
-		end
+		if l:sub(1, 1) == "+" then hl = "GitMovieAdd"
+		elseif l:sub(1, 1) == "-" then hl = "GitMovieDel"
+		else hl = "GitMovieCtx" end
+		if hl then vim.api.nvim_buf_add_highlight(M.right_buf, M.ns, hl, i - 1, 0, -1) end
 	end
 end
 
@@ -156,16 +132,12 @@ local function update_left_for_commit(hash, subject, date, changes)
 		"Commit: " .. hash .. " - " .. (subject or ""),
 	}
 	local date_str = date or ""
-	if date_str ~= "" then
-		date_str = date_str:gsub("\n", " ")
-	end
+	if date_str ~= "" then date_str = date_str:gsub("\n", " ") end
 	table.insert(left_lines, "Date: " .. date_str)
 	table.insert(left_lines, "")
 	table.insert(left_lines, "Changes:")
 	if changes and #changes > 0 then
-		for _, c in ipairs(changes) do
-			table.insert(left_lines, "  " .. c)
-		end
+		for _, c in ipairs(changes) do table.insert(left_lines, "  " .. c) end
 	end
 	render_left(left_lines)
 end
@@ -174,21 +146,15 @@ function M._show_index(idx)
 	if not M._commits or #M._commits == 0 then
 		return
 	end
-	if idx < 1 then
-		idx = 1
-	end
-	if idx > #M._commits then
-		idx = #M._commits
-	end
+	if idx < 1 then idx = 1 end
+	if idx > #M._commits then idx = #M._commits end
 	local hash = M._commits[idx]
 	local subject = vim.fn.system({ "git", "-C", M.repo, "log", "-1", "--pretty=format:%s", hash })
-	local header = string.format("Commit: %s - %s", hash, subject:gsub("\n", " "))
+	local header = string.format("Commit: %s - %s", hash, subject:gsub("\\n", " "))
 	local diff = diff_lines(M.repo, hash)
 	local right_frame = {}
 	table.insert(right_frame, header)
-	for _, ln in ipairs(diff) do
-		table.insert(right_frame, ln)
-	end
+	for _, ln in ipairs(diff) do table.insert(right_frame, ln) end
 	render_right(right_frame)
 	M._current = idx
 	M._index = math.min(#M._commits, M._current + 1)
@@ -199,9 +165,7 @@ function M._show_index(idx)
 	local ch_out = vim.fn.system({ "git", "-C", M.repo, "diff-tree", "--no-commit-id", "--name-status", "-r", hash })
 	if vim.v.shell_error == 0 and ch_out and ch_out ~= "" then
 		for s in string.gmatch(ch_out, "[^\n]+") do
-			if s ~= "" then
-				table.insert(changes, s)
-			end
+			if s ~= "" then table.insert(changes, s) end
 		end
 	end
 	update_left_for_commit(hash, subject, date, changes)
@@ -227,12 +191,8 @@ function M._on_nav(delta)
 		base = math.max(1, math.min(#M._commits, M._index))
 	end
 	local newidx = base + (delta or 1)
-	if newidx < 1 then
-		newidx = 1
-	end
-	if newidx > #M._commits then
-		newidx = #M._commits
-	end
+	if newidx < 1 then newidx = 1 end
+	if newidx > #M._commits then newidx = #M._commits end
 	M._show_index(newidx)
 end
 
@@ -248,9 +208,7 @@ end
 
 function M.stop()
 	if M.timer then
-		pcall(function()
-			M.timer:stop()
-		end)
+		pcall(function() M.timer:stop() end)
 		M.timer = nil
 	end
 	if M.right_win and vim.api.nvim_win_is_valid(M.right_win) then
@@ -270,6 +228,25 @@ function M.stop()
 	M.right_win = nil
 end
 
+-- Open the viewer in a non-playing mode (no playback, navigate with h/j)
+function M.open_view(repo_path)
+	repo_path = repo_path or vim.fn.getcwd()
+	M.repo = repo_path
+	vim.notify("GitMovie: opening viewer for repo " .. tostring(repo_path))
+	local commits = build_commits(M.repo)
+	if vim.tbl_isempty(commits) then
+		vim.notify("GitMovie: no commits found", vim.log.levels.ERROR)
+		return
+	end
+	M._commits = commits
+	M._index = 1
+	M._current = 0
+	-- Do not start timer/playback
+	ensure_split()
+	-- Render the first commit if available
+	M._show_index(1)
+end
+
 function M.start(repo_path)
 	repo_path = repo_path or vim.fn.getcwd()
 	vim.notify("GitMovie: starting replay for repo " .. tostring(repo_path))
@@ -287,11 +264,9 @@ function M.start(repo_path)
 	M._commits = commits
 	M._index = 1
 	M._current = 0
-
-	M.pause()
+	M.pause() -- ensure clean timer
 	ensure_split()
 	M.timer = vim.loop.new_timer()
-
 	local function frame_step()
 		if not M._commits or M._index > #M._commits then
 			M.stop()
@@ -301,33 +276,26 @@ function M.start(repo_path)
 		local idx = M._index
 		local hash = M._commits[idx]
 		local subject = vim.fn.system({ "git", "-C", repo_path, "log", "-1", "--pretty=format:%s", hash })
-		local header = string.format("Commit: %s - %s", hash, subject:gsub("\n", " "))
+		local header = string.format("Commit: %s - %s", hash, subject:gsub("\\n", " "))
 		local diff = diff_lines(repo_path, hash)
 		local right_frame = {}
 		table.insert(right_frame, header)
-		for _, ln in ipairs(diff) do
-			table.insert(right_frame, ln)
-		end
+		for _, ln in ipairs(diff) do table.insert(right_frame, ln) end
 		render_right(right_frame)
 		M._current = idx
 		M._index = M._index + 1
 		-- refresh left meta for current commit
 		local date = vim.fn.system({ "git", "-C", M.repo, "log", "-1", "--format=%ad", "--date=short", hash })
 		local changes = {}
-		local ch_out =
-			vim.fn.system({ "git", "-C", M.repo, "diff-tree", "--no-commit-id", "--name-status", "-r", hash })
+		local ch_out = vim.fn.system({ "git", "-C", M.repo, "diff-tree", "--no-commit-id", "--name-status", "-r", hash })
 		if vim.v.shell_error == 0 and ch_out and ch_out ~= "" then
-			for s in string.gmatch(ch_out, "[^\n]+") do
-				if s ~= "" then
-					table.insert(changes, s)
-				end
+			for s in string.gmatch(ch_out, "[^\\n]+") do
+				if s ~= "" then table.insert(changes, s) end
 			end
 		end
 		update_left_for_commit(hash, subject, date, changes)
 		if M._index > #M._commits then
-			vim.defer_fn(function()
-				M.stop()
-			end, 400)
+			vim.defer_fn(function() M.stop() end, 400)
 		end
 	end
 
@@ -339,9 +307,9 @@ end
 function M.show_help()
 	local help_lines = {
 		"GitMovie Controls:",
-		"l - next commit",
+		"j - next commit",
 		"h - previous commit",
-		"q - quit",
+		"q - quit viewers",
 		"g? - show this help",
 	}
 	render_left(help_lines)
