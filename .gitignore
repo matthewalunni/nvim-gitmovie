@@ -1,0 +1,51 @@
+# Swap / temp files
+*.swp
+*.swo
+*.swx
+*.swn
+*.un~
+
+# Vim/Neovim
+Session.vim
+session.vim
+swap/
+backup/
+tags
+*.undo
+
+# OS files
+.DS_Store
+.Trashes
+Thumbs.db
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.env
+venv/
+
+# Builds
+dist/
+build/
+target/
+
+# Misc
+*.log
+coverage/
+
+# Luarocks
+luarocks-

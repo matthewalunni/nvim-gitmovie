@@ -6,6 +6,12 @@ M.diff_buf = nil
 M.diff_win = nil
 M.ns = vim.api.nvim_create_namespace("gitmovie")
 
+-- track commits and positions
+M._commits = {}
+M._index = 1 -- next-to-show index when playing
+M._current = 0 -- last shown index
+M._mapped = false
+
 -- Ensure a floating window is ready to display frames
 local function ensure_window()
 	if M.diff_win and vim.api.nvim_win_is_valid(M.diff_win) then
@@ -30,11 +36,20 @@ local function ensure_window()
 	vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
 	vim.api.nvim_buf_set_option(buf, "filetype", "gitmovie")
 	vim.api.nvim_buf_set_option(buf, "modifiable", true)
+
+	-- buffer-local mappings for navigation: use counts like 3l or 2h
+	if not M._mapped then
+		vim.api.nvim_buf_set_keymap(buf, 'n', 'l', '<cmd>lua require("gitmovie")._on_nav(vim.v.count1)<CR>', {noremap=true, silent=true})
+		vim.api.nvim_buf_set_keymap(buf, 'n', 'h', '<cmd>lua require("gitmovie")._on_nav(-vim.v.count1)<CR>', {noremap=true, silent=true})
+		vim.api.nvim_buf_set_keymap(buf, 'n', 'q', '<cmd>lua require("gitmovie").stop()<CR>', {noremap=true, silent=true})
+		M._mapped = true
+	end
 end
 
 -- Build commits list (oldest first)
 local function build_commits(repo)
-	local cmd = { "git", "-C", repo, "log", "--reverse", "--pretty=format:%H" }
+	-- Use git rev-list to list commits oldest->newest
+	local cmd = { "git", "-C", repo, "rev-list", "--reverse", "--all" }
 	local out = vim.fn.system(cmd)
 	if vim.v.shell_error ~= 0 then
 		vim.notify("GitMovie: failed to read commits", vim.log.levels.ERROR)
@@ -90,6 +105,57 @@ local function render(lines)
 	end
 end
 
+-- Show a specific commit index (1-based)
+function M._show_index(idx)
+	if not M._commits or #M._commits == 0 then
+		return
+	end
+	if idx < 1 then idx = 1 end
+	if idx > #M._commits then idx = #M._commits end
+	local hash = M._commits[idx]
+	local subject = vim.fn.system({ "git", "-C", M.repo, "log", "-1", "--pretty=format:%s", hash })
+	local header = string.format("Commit: %s - %s", hash, subject:gsub("\n", " "))
+	local diff = diff_lines(M.repo, hash)
+	local frame = {}
+	table.insert(frame, header)
+	for _, ln in ipairs(diff) do
+		table.insert(frame, ln)
+	end
+	render(frame)
+	M._current = idx
+	-- keep _index pointing to the next item if resumed
+	M._index = math.min(#M._commits, M._current + 1)
+end
+
+-- Pause playback but keep window
+function M.pause()
+	if M.timer then
+		pcall(function()
+			M.timer:stop()
+		end)
+		M.timer = nil
+	end
+end
+
+-- Handle navigation invoked from mappings (delta may be negative)
+function M._on_nav(delta)
+	-- ensure we have commits
+	if not M._commits or #M._commits == 0 then
+		vim.notify("GitMovie: no commits to navigate", vim.log.levels.WARN)
+		return
+	end
+	M.pause()
+	local base = M._current
+	if base == 0 then
+		-- if nothing shown yet, use nearest index
+		base = math.max(1, math.min(#M._commits, M._index))
+	end
+	local newidx = base + (delta or 1)
+	if newidx < 1 then newidx = 1 end
+	if newidx > #M._commits then newidx = #M._commits end
+	M._show_index(newidx)
+end
+
 function M.set_repo(path)
 	M.repo = path
 	vim.notify("GitMovie: repo set to " .. tostring(path))
@@ -111,6 +177,10 @@ function M.stop()
 		vim.api.nvim_win_close(M.diff_win, true)
 		M.diff_win = nil
 	end
+	-- reset state
+	M._commits = {}
+	M._index = 1
+	M._current = 0
 end
 
 function M.start(repo_path)
@@ -131,7 +201,8 @@ function M.start(repo_path)
 	end
 	M._commits = commits
 	M._index = 1
-	M.stop() -- ensure clean
+	M._current = 0
+	M.pause() -- ensure clean timer
 	ensure_window()
 	M.timer = vim.loop.new_timer()
 	local function frame_step()
@@ -140,7 +211,9 @@ function M.start(repo_path)
 			vim.notify("GitMovie: replay finished")
 			return
 		end
-		local hash = M._commits[M._index]
+		local idx = M._index
+		-- render commit at idx
+		local hash = M._commits[idx]
 		local subject = vim.fn.system({ "git", "-C", repo_path, "log", "-1", "--pretty=format:%s", hash })
 		local header = string.format("Commit: %s - %s", hash, subject:gsub("\n", " "))
 		local diff = diff_lines(repo_path, hash)
@@ -150,6 +223,7 @@ function M.start(repo_path)
 			table.insert(frame, ln)
 		end
 		render(frame)
+		M._current = idx
 		M._index = M._index + 1
 		if M._index > #M._commits then
 			vim.defer_fn(function()
