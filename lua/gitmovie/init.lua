@@ -115,6 +115,9 @@ end
 
 function M.start(repo_path)
 	repo_path = repo_path or vim.fn.getcwd()
+
+    vim.notify("GitMovie: starting replay for repo " .. tostring(repo_path))
+    vim.notify("CWD: " .. vim.fn.getcwd())
 	if not repo_path or repo_path == "" then
 		vim.notify("GitMovie: please specify a repo path", vim.log.levels.ERROR)
 		return
