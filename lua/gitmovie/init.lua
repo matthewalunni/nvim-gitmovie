@@ -14,45 +14,46 @@ M._index = 1 -- next-to-show index when playing
 M._current = 0 -- last shown index
 M._mapped = false
 
--- Ensure a full-screen window with left and right panes is ready
-local function ensure_window()
-	if M.diff_win and vim.api.nvim_win_is_valid(M.diff_win) and 
-	   M.left_win and vim.api.nvim_win_is_valid(M.left_win) then
-		vim.api.nvim_set_current_win(M.diff_win)
-		return
-	end
-	
-	-- Create left buffer (25% width)
-	local left_buf = vim.api.nvim_create_buf(false, true)
-	local left_width = math.floor(vim.o.columns * 0.25)
-	local left_win = vim.api.nvim_open_win(left_buf, true, {
+local function create_window(width)
+	-- Create a new buffer
+	local buf = vim.api.nvim_create_buf(false, true) -- unlisted, scratch
+	-- Calculate window dimensions
+	local win_width = math.floor(vim.o.columns * width)
+	local win_height = vim.o.lines - 2 -- leave space for command line
+	-- Open a new floating window
+	local win = vim.api.nvim_open_win(buf, true, {
 		relative = "editor",
-		width = left_width,
-		height = vim.o.lines - 2,
+		width = win_width,
+		height = win_height,
 		row = 0,
 		col = 0,
 		style = "minimal",
 	})
-	
-	-- Create right buffer (75% width)
-	local right_buf = vim.api.nvim_create_buf(false, true)
-	local right_width = vim.o.columns - left_width
-	local right_win = vim.api.nvim_open_win(right_buf, true, {
-		relative = "editor",
-		width = right_width,
-		height = vim.o.lines - 2,
-		row = 0,
-		col = left_width,
-		style = "minimal",
-	})
-	
+	return buf, win
+end
+
+-- Ensure a full-screen window with left and right panes is ready
+local function ensure_window()
+	if
+		M.diff_win
+		and vim.api.nvim_win_is_valid(M.diff_win)
+		and M.left_win
+		and vim.api.nvim_win_is_valid(M.left_win)
+	then
+		vim.api.nvim_set_current_win(M.diff_win)
+		return
+	end
+
+	local left_buf, left_win = create_window(0.25)
+	local right_buf, right_win = create_window(0.75)
+
 	M.left_buf = left_buf
 	M.left_win = left_win
 	M.diff_buf = right_buf
 	M.diff_win = right_win
-	
+
 	-- Set buffer options for both panes
-	for _, buf in ipairs({left_buf, right_buf}) do
+	for _, buf in ipairs({ left_buf, right_buf }) do
 		vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
 		vim.api.nvim_buf_set_option(buf, "filetype", "gitmovie")
 		vim.api.nvim_buf_set_option(buf, "modifiable", true)
@@ -60,7 +61,7 @@ local function ensure_window()
 
 	-- buffer-local mappings for navigation: use counts like 3l or 2h
 	if not M._mapped then
-		for _, buf in ipairs({left_buf, right_buf}) do
+		for _, buf in ipairs({ left_buf, right_buf }) do
 			vim.api.nvim_buf_set_keymap(
 				buf,
 				"n",
@@ -170,6 +171,11 @@ local function update_left_for_commit(hash, subject, date, changes)
 			table.insert(left_lines, "  " .. c)
 		end
 	end
+	table.insert(left_lines, "")
+	table.insert(left_lines, "Help:")
+	table.insert(left_lines, "  h/l - Navigate commits")
+	table.insert(left_lines, "  q - Quit")
+	table.insert(left_lines, "  :GitMovie - Start player")
 	render_left(left_lines)
 end
 
@@ -323,7 +329,20 @@ function M.open_movie_player()
 	-- open the right and left panes side by side
 	ensure_window()
 	-- render left and right below
-	render_left({ "GitMovie Player", "", "Use 'h' and 'l' to navigate commits.", "Press 'q' to quit." })
+    -- render left menu with help info
+	local left_lines = {
+		"GitMovie Player",
+		"",
+		"Help:",
+		"  h/l - Navigate commits",
+		"  q - Quit",
+		"  :GitMovie - Start player",
+		"",
+		"Use :GitMovieStart to begin",
+		"replaying commits from current",
+		"git repository.",
+	}
+	render_left(left_lines)
 	render_right({ "GitMovie Player", "", "Use 'h' and 'l' to navigate commits.", "Press 'q' to quit." })
 end
 
