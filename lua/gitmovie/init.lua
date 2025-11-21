@@ -293,8 +293,13 @@ function M.start(repo_path)
 end
 
 function M.open_movie_player()
-	ensure_window()
-	vim.api.nvim_set_current_win(M.diff_win)
+    -- open the right and left panes side by side
+    ensure_window()
+    -- render left and right beloq
+    render_left({"GitMovie Player", "", "Use 'h' and 'l' to navigate commits.", "Press 'q' to quit."})
+    render_right({"GitMovie Player", "", "Use 'h' and 'l' to navigate commits.", "Press 'q' to quit."})
+
+
 end
 
 return M
