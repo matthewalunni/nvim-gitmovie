@@ -1,16 +1,11 @@
 GitMovie - Neovim plugin to replay git commits as animated diffs
 
 Commands
-  - GitMovieStart [repo_path] : Start replay from the given repo or current CWD
-  - GitMovieStop            : Stop the animation and close the viewer
-  - GitMovieSetRepo <path>  : Set the repository path
-  - GitMovieSpeed [ms]       : Set speed (milliseconds per frame)
+  - GitMovie: Open gitmovie in the current directory
 
 Usage
-  1) Set a repo: `:GitMovieSetRepo /path/to/repo` or rely on current working directory
-  2) Start replay: `:GitMovieStart /path/to/repo` (or omit to use the set repo)
-  3) Control: `:GitMovieSpeed 80` to speed up; `:GitMovieStop` to end
+  1) TBA
 
 Notes
-  - The plugin renders a floating window containing the animated diff for each commit, line-by-line.
+  - The plugin renders a window containing the animated diff for each commit, line-by-line.
   - Diff lines are colored: additions in green, deletions in red, context in gray.

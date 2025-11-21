@@ -1,4 +1,4 @@
-# GitMovie
+# GitMovie WIP
 
 A Neovim plugin that replays git commits as animated diffs, allowing you to visualize the evolution of a codebase over time.
 
@@ -179,4 +179,3 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Inspiration
 
 GitMovie was inspired by the desire to better understand code evolution and visualize the development process in an intuitive, animated format.
-

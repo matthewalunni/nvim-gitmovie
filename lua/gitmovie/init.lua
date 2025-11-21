@@ -94,7 +94,9 @@ local function diff_lines(repo, hash)
 		if line:match("^diff ") or line:match("^index ") or line:match("^---") or line:match("^+++") then
 		else
 			local l = line
-			if l == "" then l = " " end
+			if l == "" then
+				l = " "
+			end
 			table.insert(lines, l)
 		end
 	end
@@ -106,10 +108,16 @@ local function render_right(lines)
 	vim.api.nvim_buf_clear_namespace(M.diff_buf, M.ns, 0, -1)
 	for i, l in ipairs(lines) do
 		local hl = nil
-		if l:sub(1, 1) == "+" then hl = "GitMovieAdd"
-		elseif l:sub(1, 1) == "-" then hl = "GitMovieDel"
-		else hl = "GitMovieCtx" end
-		if hl then vim.api.nvim_buf_add_highlight(M.diff_buf, M.ns, hl, i - 1, 0, -1) end
+		if l:sub(1, 1) == "+" then
+			hl = "GitMovieAdd"
+		elseif l:sub(1, 1) == "-" then
+			hl = "GitMovieDel"
+		else
+			hl = "GitMovieCtx"
+		end
+		if hl then
+			vim.api.nvim_buf_add_highlight(M.diff_buf, M.ns, hl, i - 1, 0, -1)
+		end
 	end
 end
 
@@ -128,12 +136,16 @@ local function update_left_for_commit(hash, subject, date, changes)
 		"Commit: " .. hash .. " - " .. (subject or ""),
 	}
 	local date_str = date or ""
-	if date_str ~= "" then date_str = date_str:gsub("\n", " ") end
+	if date_str ~= "" then
+		date_str = date_str:gsub("\n", " ")
+	end
 	table.insert(left_lines, "Date: " .. date_str)
 	table.insert(left_lines, "")
 	table.insert(left_lines, "Changes:")
 	if changes and #changes > 0 then
-		for _, c in ipairs(changes) do table.insert(left_lines, "  " .. c) end
+		for _, c in ipairs(changes) do
+			table.insert(left_lines, "  " .. c)
+		end
 	end
 	render_left(left_lines)
 end
@@ -142,15 +154,21 @@ function M._show_index(idx)
 	if not M._commits or #M._commits == 0 then
 		return
 	end
-	if idx < 1 then idx = 1 end
-	if idx > #M._commits then idx = #M._commits end
+	if idx < 1 then
+		idx = 1
+	end
+	if idx > #M._commits then
+		idx = #M._commits
+	end
 	local hash = M._commits[idx]
 	local subject = vim.fn.system({ "git", "-C", M.repo, "log", "-1", "--pretty=format:%s", hash })
 	local header = string.format("Commit: %s - %s", hash, subject:gsub("\\n", " "))
 	local diff = diff_lines(M.repo, hash)
 	local right_frame = {}
 	table.insert(right_frame, header)
-	for _, ln in ipairs(diff) do table.insert(right_frame, ln) end
+	for _, ln in ipairs(diff) do
+		table.insert(right_frame, ln)
+	end
 	render_right(right_frame)
 	M._current = idx
 	M._index = math.min(#M._commits, M._current + 1)
@@ -161,7 +179,9 @@ function M._show_index(idx)
 	local ch_out = vim.fn.system({ "git", "-C", M.repo, "diff-tree", "--no-commit-id", "--name-status", "-r", hash })
 	if vim.v.shell_error == 0 and ch_out and ch_out ~= "" then
 		for s in string.gmatch(ch_out, "[^\\n]+") do
-			if s ~= "" then table.insert(changes, s) end
+			if s ~= "" then
+				table.insert(changes, s)
+			end
 		end
 	end
 	update_left_for_commit(hash, subject, date, changes)
@@ -187,8 +207,12 @@ function M._on_nav(delta)
 		base = math.max(1, math.min(#M._commits, M._index))
 	end
 	local newidx = base + (delta or 1)
-	if newidx < 1 then newidx = 1 end
-	if newidx > #M._commits then newidx = #M._commits end
+	if newidx < 1 then
+		newidx = 1
+	end
+	if newidx > #M._commits then
+		newidx = #M._commits
+	end
 	M._show_index(newidx)
 end
 
@@ -204,7 +228,9 @@ end
 
 function M.stop()
 	if M.timer then
-		pcall(function() M.timer:stop() end)
+		pcall(function()
+			M.timer:stop()
+		end)
 		M.timer = nil
 	end
 	if M.diff_win and vim.api.nvim_win_is_valid(M.diff_win) then
@@ -249,17 +275,26 @@ function M.start(repo_path)
 		local diff = diff_lines(repo_path, hash)
 		local frame = {}
 		table.insert(frame, header)
-		for _, ln in ipairs(diff) do table.insert(frame, ln) end
+		for _, ln in ipairs(diff) do
+			table.insert(frame, ln)
+		end
 		render_right(frame)
 		M._current = idx
 		M._index = M._index + 1
 		if M._index > #M._commits then
-			vim.defer_fn(function() M.stop() end, 400)
+			vim.defer_fn(function()
+				M.stop()
+			end, 400)
 		end
 	end
 	M.timer:start(0, M.speed, function()
 		vim.schedule(frame_step)
 	end)
+end
+
+function M.open_movie_player()
+	ensure_window()
+	vim.api.nvim_set_current_win(M.diff_win)
 end
 
 return M
