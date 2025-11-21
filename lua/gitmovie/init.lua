@@ -4,6 +4,8 @@ M.speed = 3000 -- ms per frame
 M.timer = nil
 M.diff_buf = nil
 M.diff_win = nil
+M.left_buf = nil
+M.left_win = nil
 M.ns = vim.api.nvim_create_namespace("gitmovie")
 
 -- track commits and positions
@@ -12,54 +14,75 @@ M._index = 1 -- next-to-show index when playing
 M._current = 0 -- last shown index
 M._mapped = false
 
--- Ensure a floating window is ready to display frames
+-- Ensure a full-screen window with left and right panes is ready
 local function ensure_window()
-	if M.diff_win and vim.api.nvim_win_is_valid(M.diff_win) then
+	if M.diff_win and vim.api.nvim_win_is_valid(M.diff_win) and 
+	   M.left_win and vim.api.nvim_win_is_valid(M.left_win) then
 		vim.api.nvim_set_current_win(M.diff_win)
 		return
 	end
-	local buf = vim.api.nvim_create_buf(false, true)
-	local width = math.floor(vim.o.columns * 0.9)
-	local height = math.floor(vim.o.lines * 0.8)
-	local row = math.floor((vim.o.lines - height) / 2)
-	local col = math.floor((vim.o.columns - width) / 2)
-	local win = vim.api.nvim_open_win(buf, true, {
+	
+	-- Create left buffer (25% width)
+	local left_buf = vim.api.nvim_create_buf(false, true)
+	local left_width = math.floor(vim.o.columns * 0.25)
+	local left_win = vim.api.nvim_open_win(left_buf, true, {
 		relative = "editor",
-		width = width,
-		height = height,
-		row = row,
-		col = col,
+		width = left_width,
+		height = vim.o.lines - 2,
+		row = 0,
+		col = 0,
 		style = "minimal",
 	})
-	M.diff_buf = buf
-	M.diff_win = win
-	vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
-	vim.api.nvim_buf_set_option(buf, "filetype", "gitmovie")
-	vim.api.nvim_buf_set_option(buf, "modifiable", true)
+	
+	-- Create right buffer (75% width)
+	local right_buf = vim.api.nvim_create_buf(false, true)
+	local right_width = vim.o.columns - left_width
+	local right_win = vim.api.nvim_open_win(right_buf, true, {
+		relative = "editor",
+		width = right_width,
+		height = vim.o.lines - 2,
+		row = 0,
+		col = left_width,
+		style = "minimal",
+	})
+	
+	M.left_buf = left_buf
+	M.left_win = left_win
+	M.diff_buf = right_buf
+	M.diff_win = right_win
+	
+	-- Set buffer options for both panes
+	for _, buf in ipairs({left_buf, right_buf}) do
+		vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
+		vim.api.nvim_buf_set_option(buf, "filetype", "gitmovie")
+		vim.api.nvim_buf_set_option(buf, "modifiable", true)
+	end
 
 	-- buffer-local mappings for navigation: use counts like 3l or 2h
 	if not M._mapped then
-		vim.api.nvim_buf_set_keymap(
-			buf,
-			"n",
-			"l",
-			'<cmd>lua require("gitmovie")._on_nav(vim.v.count1)<CR>',
-			{ noremap = true, silent = true }
-		)
-		vim.api.nvim_buf_set_keymap(
-			buf,
-			"n",
-			"h",
-			'<cmd>lua require("gitmovie")._on_nav(-vim.v.count1)<CR>',
-			{ noremap = true, silent = true }
-		)
-		vim.api.nvim_buf_set_keymap(
-			buf,
-			"n",
-			"q",
-			'<cmd>lua require("gitmovie").stop()<CR>',
-			{ noremap = true, silent = true }
-		)
+		for _, buf in ipairs({left_buf, right_buf}) do
+			vim.api.nvim_buf_set_keymap(
+				buf,
+				"n",
+				"l",
+				'<cmd>lua require("gitmovie")._on_nav(vim.v.count1)<CR>',
+				{ noremap = true, silent = true }
+			)
+			vim.api.nvim_buf_set_keymap(
+				buf,
+				"n",
+				"h",
+				'<cmd>lua require("gitmovie")._on_nav(-vim.v.count1)<CR>',
+				{ noremap = true, silent = true }
+			)
+			vim.api.nvim_buf_set_keymap(
+				buf,
+				"n",
+				"q",
+				'<cmd>lua require("gitmovie").stop()<CR>',
+				{ noremap = true, silent = true }
+			)
+		end
 		M._mapped = true
 	end
 end
@@ -237,6 +260,10 @@ function M.stop()
 		vim.api.nvim_win_close(M.diff_win, true)
 		M.diff_win = nil
 	end
+	if M.left_win and vim.api.nvim_win_is_valid(M.left_win) then
+		vim.api.nvim_win_close(M.left_win, true)
+		M.left_win = nil
+	end
 	M._commits = {}
 	M._index = 1
 	M._current = 0
@@ -293,13 +320,11 @@ function M.start(repo_path)
 end
 
 function M.open_movie_player()
-    -- open the right and left panes side by side
-    ensure_window()
-    -- render left and right beloq
-    render_left({"GitMovie Player", "", "Use 'h' and 'l' to navigate commits.", "Press 'q' to quit."})
-    render_right({"GitMovie Player", "", "Use 'h' and 'l' to navigate commits.", "Press 'q' to quit."})
-
-
+	-- open the right and left panes side by side
+	ensure_window()
+	-- render left and right below
+	render_left({ "GitMovie Player", "", "Use 'h' and 'l' to navigate commits.", "Press 'q' to quit." })
+	render_right({ "GitMovie Player", "", "Use 'h' and 'l' to navigate commits.", "Press 'q' to quit." })
 end
 
 return M
