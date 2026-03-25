@@ -296,6 +296,7 @@ local function animate_file_patch(patch, patch_num, total_patches, callback)
 		patch_num, total_patches,
 		patch.filepath
 	))
+	update_top_bar(patch.filepath, S.commit_idx, S.total_commits)
 
 	if #patch.hunks == 0 then
 		-- No hunks (e.g. binary file or deleted file with no content diff)
@@ -407,6 +408,7 @@ function M.play_from(repo, commits, start_idx)
 	S.resume_fn = nil
 
 	open_status_window()
+	open_top_bar()
 	update_status(string.format(
 		"GitMovie: loading commit %d/%d...",
 		start_idx, #commits
@@ -435,6 +437,12 @@ function M.stop()
 	end
 	S.status_win = nil
 	S.status_buf = nil
+
+	if S.top_win and vim.api.nvim_win_is_valid(S.top_win) then
+		vim.api.nvim_win_close(S.top_win, true)
+	end
+	S.top_win = nil
+	S.top_buf = nil
 
 	S.commits = {}
 	S.commit_idx = 0
