@@ -22,9 +22,10 @@ local S = {
 
 -- Define highlight groups
 local function setup_highlights()
-	vim.api.nvim_set_hl(0, "GitMovieDel", { bg = "#5c1a1a", fg = "#ff8080" })
-	vim.api.nvim_set_hl(0, "GitMovieAdd", { fg = "#80ff80", bold = true })
-	vim.api.nvim_set_hl(0, "GitMovieStatus", { bg = "#1a1a2e", fg = "#a0a0c0" })
+	vim.api.nvim_set_hl(0, "GitMovieDel",    { bg = "#4a0e0e", fg = "#ff6b6b", bold = true })
+	vim.api.nvim_set_hl(0, "GitMovieAdd",    { bg = "#0d2a0d", fg = "#69ff69", bold = true })
+	vim.api.nvim_set_hl(0, "GitMovieStatus", { bg = "#161b22", fg = "#8b949e" })
+	vim.api.nvim_set_hl(0, "GitMovieTopBar", { bg = "#0d1117", fg = "#c9d1d9" })
 end
 
 -- Open or update the status window at the bottom
