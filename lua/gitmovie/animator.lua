@@ -58,6 +58,35 @@ local function update_status(text)
 	end
 end
 
+-- Open (or reuse) the top bar window
+local function open_top_bar()
+	if S.top_buf and vim.api.nvim_buf_is_valid(S.top_buf) then
+		return
+	end
+	S.top_buf = vim.api.nvim_create_buf(false, true)
+	vim.api.nvim_buf_set_option(S.top_buf, "bufhidden", "wipe")
+	S.top_win = vim.api.nvim_open_win(S.top_buf, false, {
+		relative = "editor",
+		width = vim.o.columns,
+		height = 1,
+		row = 0,
+		col = 0,
+		style = "minimal",
+		focusable = false,
+		zindex = 51,
+	})
+	vim.api.nvim_win_set_option(S.top_win, "winhl", "Normal:GitMovieTopBar")
+end
+
+local function update_top_bar(filepath, commit_idx, total_commits)
+	if S.top_buf and vim.api.nvim_buf_is_valid(S.top_buf) then
+		local text = string.format("  %s  │  Commit %d/%d", filepath, commit_idx, total_commits)
+		vim.api.nvim_buf_set_option(S.top_buf, "modifiable", true)
+		vim.api.nvim_buf_set_lines(S.top_buf, 0, -1, false, { text })
+		vim.api.nvim_buf_set_option(S.top_buf, "modifiable", false)
+	end
+end
+
 -- Open (or reuse) the main file window
 local function open_file_window(filepath, lines)
 	-- Create new buffer for this file
