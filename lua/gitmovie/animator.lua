@@ -246,51 +246,64 @@ end
 local function animate_hunk(buf, hunk, line_offset, callback)
 	if S.cancel then return end
 
-	-- Figure out where deletions are in the current buffer
-	-- old_start is 1-indexed in the original file; adjust by line_offset
-	local base = hunk.old_start - 1 + line_offset -- 0-indexed in current buffer
+	-- old_start is 1-indexed; convert to 0-indexed and adjust by accumulated offset
+	-- Clamp to 0 for new-file hunks where old_start=0 produces base=-1
+	local base = math.max(0, hunk.old_start - 1 + line_offset)
 
-	-- Walk through hunk lines to find deletion positions and addition texts
+	-- Walk the hunk to collect:
+	--   del_positions  : 0-indexed buffer lines to delete
+	--   add_groups     : { pos, texts } pairs — pos is the post-deletion insertion
+	--                    point, calculated as base + (# context lines seen so far)
 	local del_positions = {}
-	local add_texts = {}
-	local add_insert_at = base -- where to insert additions after deletions are removed
+	local add_groups    = {}
+	local pending_adds  = {}
+	local old_cursor    = base
+	local ctx_count     = 0   -- context lines seen before current position
 
-	local cursor = base
+	local function flush_adds()
+		if #pending_adds > 0 then
+			table.insert(add_groups, { pos = base + ctx_count, texts = pending_adds })
+			pending_adds = {}
+		end
+	end
+
 	for _, entry in ipairs(hunk.lines) do
 		if entry.op == " " then
-			cursor = cursor + 1
+			flush_adds()
+			ctx_count   = ctx_count + 1
+			old_cursor  = old_cursor + 1
 		elseif entry.op == "-" then
-			table.insert(del_positions, cursor)
-			cursor = cursor + 1
+			flush_adds()
+			table.insert(del_positions, old_cursor)
+			old_cursor = old_cursor + 1
 		elseif entry.op == "+" then
-			table.insert(add_texts, entry.text)
+			table.insert(pending_adds, entry.text)
 		end
 	end
+	flush_adds()
 
-	-- The insertion point for additions is right after context lines before first deletion
-	-- Recalculate: find the first non-context line position
-	add_insert_at = base
-	for _, entry in ipairs(hunk.lines) do
-		if entry.op == " " then
-			add_insert_at = add_insert_at + 1
-		else
-			break
-		end
-	end
-	-- Clamp to 0: new-file hunks have old_start=0, making base=-1
-	add_insert_at = math.max(0, add_insert_at)
-
-	local dels = #del_positions
-	local adds = #add_texts
+	local dels  = #del_positions
+	local adds  = 0
+	for _, g in ipairs(add_groups) do adds = adds + #g.texts end
 	local delta = adds - dels
 
 	highlight_and_delete(buf, S.ns, del_positions, 800, function()
 		if S.cancel then return end
-		-- After deletions, additions insert at add_insert_at (which is now correct
-		-- since deleted lines are gone)
-		typewriter_lines(buf, add_insert_at, add_texts, 120, function()
-			callback(line_offset + delta)
-		end)
+		-- Insert each addition group at its correct position, adjusting for
+		-- lines already inserted by prior groups in this hunk.
+		local insert_offset = 0
+		local function do_group(gi)
+			if gi > #add_groups then
+				callback(line_offset + delta)
+				return
+			end
+			local g = add_groups[gi]
+			typewriter_lines(buf, g.pos + insert_offset, g.texts, 120, function()
+				insert_offset = insert_offset + #g.texts
+				do_group(gi + 1)
+			end)
+		end
+		do_group(1)
 	end)
 end
 
