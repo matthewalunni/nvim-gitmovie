@@ -277,6 +277,8 @@ local function animate_hunk(buf, hunk, line_offset, callback)
 			break
 		end
 	end
+	-- Clamp to 0: new-file hunks have old_start=0, making base=-1
+	add_insert_at = math.max(0, add_insert_at)
 
 	local dels = #del_positions
 	local adds = #add_texts
