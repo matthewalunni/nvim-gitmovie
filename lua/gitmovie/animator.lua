@@ -117,13 +117,14 @@ local function open_file_window(filepath, lines)
 		S.win = vim.api.nvim_open_win(buf, true, {
 			relative = "editor",
 			width = vim.o.columns,
-			height = vim.o.lines - 3, -- leave room for status bar
-			row = 0,
+			height = vim.o.lines - 3,
+			row = 1,
 			col = 0,
-			style = "minimal",
 			zindex = 50,
 		})
 	end
+
+	vim.wo[S.win].number = true
 
 	S.buf = buf
 
