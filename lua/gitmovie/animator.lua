@@ -64,7 +64,7 @@ local function open_top_bar()
 		return
 	end
 	S.top_buf = vim.api.nvim_create_buf(false, true)
-	vim.api.nvim_buf_set_option(S.top_buf, "bufhidden", "wipe")
+	vim.bo[S.top_buf].bufhidden = "wipe"
 	S.top_win = vim.api.nvim_open_win(S.top_buf, false, {
 		relative = "editor",
 		width = vim.o.columns,
@@ -75,15 +75,15 @@ local function open_top_bar()
 		focusable = false,
 		zindex = 51,
 	})
-	vim.api.nvim_win_set_option(S.top_win, "winhl", "Normal:GitMovieTopBar")
+	vim.wo[S.top_win].winhl = "Normal:GitMovieTopBar"
 end
 
 local function update_top_bar(filepath, commit_idx, total_commits)
 	if S.top_buf and vim.api.nvim_buf_is_valid(S.top_buf) then
 		local text = string.format("  %s  │  Commit %d/%d", filepath, commit_idx, total_commits)
-		vim.api.nvim_buf_set_option(S.top_buf, "modifiable", true)
+		vim.bo[S.top_buf].modifiable = true
 		vim.api.nvim_buf_set_lines(S.top_buf, 0, -1, false, { text })
-		vim.api.nvim_buf_set_option(S.top_buf, "modifiable", false)
+		vim.bo[S.top_buf].modifiable = false
 	end
 end
 
