@@ -13,13 +13,14 @@ function M.play()
 	end
 
 	local items = {}
-	for i, c in ipairs(commits) do
-		items[i] = string.format("[%d/%d] %s  %s  (%s)", i, #commits, c.hash:sub(1, 8), c.subject, c.date)
+	for i = 1, #commits do
+		local c = commits[#commits - i + 1]
+		items[i] = string.format("[%d/%d] %s  %s  (%s)", #commits - i + 1, #commits, c.hash:sub(1, 8), c.subject, c.date)
 	end
 
 	vim.ui.select(items, { prompt = "GitMovie: select starting commit" }, function(_, idx)
 		if not idx then return end
-		animator.play_from(repo, commits, idx)
+		animator.play_from(repo, commits, #commits - idx + 1)
 	end)
 end
 
