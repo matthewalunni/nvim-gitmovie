@@ -76,8 +76,13 @@ function M.parse_diff(diff_text)
 			if current_patch then
 				current_patch.is_deleted = true
 			end
-		elseif l:match("^%-%-%- ") or l:match("^%+%+%+ ") then
-			-- Skip --- and +++ header lines
+		elseif l:match("^%-%-%- ") then
+			local old_file = l:match("^%-%-%- a/(.+)$")
+			if old_file and current_patch then
+				current_patch.old_filepath = old_file
+			end
+		elseif l:match("^%+%+%+ ") then
+			-- Skip +++ header lines
 		elseif current_patch then
 			-- Hunk header: @@ -old_start[,old_count] +new_start[,new_count] @@
 			local old_start, old_count, new_start, new_count =

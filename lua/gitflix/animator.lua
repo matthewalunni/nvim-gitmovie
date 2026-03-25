@@ -317,7 +317,7 @@ local function animate_file_patch(patch, patch_num, total_patches, callback)
 	if patch.is_new then
 		lines = {}
 	else
-		lines = git.get_file_at(S.repo, parent_ref, patch.filepath)
+		lines = git.get_file_at(S.repo, parent_ref, patch.old_filepath or patch.filepath)
 	end
 
 	-- Open file buffer with parent content
