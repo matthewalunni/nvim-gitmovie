@@ -1,14 +1,14 @@
 local M = {}
 
 function M.play()
-	local git = require("gitmovie.git")
-	local animator = require("gitmovie.animator")
+	local git = require("gitflix.git")
+	local animator = require("gitflix.animator")
 
 	local repo = vim.fn.getcwd()
 	local commits = git.get_commits(repo)
 
 	if #commits == 0 then
-		vim.notify("GitMovie: no commits found", vim.log.levels.ERROR)
+		vim.notify("GitFlix: no commits found", vim.log.levels.ERROR)
 		return
 	end
 
@@ -18,22 +18,22 @@ function M.play()
 		items[i] = string.format("[%d/%d] %s  %s  (%s)", #commits - i + 1, #commits, c.hash:sub(1, 8), c.subject, c.date)
 	end
 
-	vim.ui.select(items, { prompt = "GitMovie: select starting commit" }, function(_, idx)
+	vim.ui.select(items, { prompt = "GitFlix: select starting commit" }, function(_, idx)
 		if not idx then return end
 		animator.play_from(repo, commits, #commits - idx + 1)
 	end)
 end
 
 function M.stop()
-	require("gitmovie.animator").stop()
+	require("gitflix.animator").stop()
 end
 
 function M.pause()
-	require("gitmovie.animator").pause()
+	require("gitflix.animator").pause()
 end
 
 function M.resume()
-	require("gitmovie.animator").resume()
+	require("gitflix.animator").resume()
 end
 
 return M

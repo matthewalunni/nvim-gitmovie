@@ -1,7 +1,7 @@
-GitMovie - Neovim plugin to replay git commits as animated diffs
+GitFlix - Neovim plugin to replay git commits as animated diffs
 
 Commands
-  - GitMovie: Open gitmovie in the current directory
+  - GitFlix: Open gitflix in the current directory
 
 Usage
   1) TBA

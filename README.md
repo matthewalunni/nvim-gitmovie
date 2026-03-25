@@ -1,10 +1,10 @@
-# GitMovie
+# GitFlix
 
 A Neovim plugin that replays git commits as animated diffs, allowing you to visualize the evolution of a codebase over time.
 
 ## Overview
 
-GitMovie creates an animated visualization of your git history, showing each commit's diff in sequence. It displays the changes in a floating window with syntax highlighting:
+GitFlix creates an animated visualization of your git history, showing each commit's diff in sequence. It displays the changes in a floating window with syntax highlighting:
 
 - **Green** for added lines (typed out with a typewriter effect)
 - **Red** for deleted lines (highlighted then removed)
@@ -16,9 +16,9 @@ GitMovie creates an animated visualization of your git history, showing each com
 
 ```lua
 {
-  'matthewalunni/nvim-gitmovie',
+  'matthewalunni/gitflix.nvim',
   keys = {
-    { '<leader>gm', '<cmd>GitMovie<cr>', desc = 'GitMovie: play git history' },
+    { '<leader>gm', '<cmd>GitFlix<cr>', desc = 'GitFlix: play git history' },
   }
 }
 ```
@@ -26,18 +26,18 @@ GitMovie creates an animated visualization of your git history, showing each com
 ### Using [packer.nvim](https://github.com/wbthomason/packer.nvim)
 
 ```lua
-use { 'matthewalunni/nvim-gitmovie' }
+use { 'matthewalunni/gitflix.nvim' }
 ```
 
 ### Using [vim-plug](https://github.com/junegunn/vim-plug)
 
 ```vim
-Plug 'matthewalunni/nvim-gitmovie'
+Plug 'matthewalunni/gitflix.nvim'
 ```
 
 ## Usage
 
-1. Run `:GitMovie` (or press `<leader>gm`) from within a git repository.
+1. Run `:GitFlix` (or press `<leader>gm`) from within a git repository.
 2. A picker appears listing all commits — select the commit you want to start from.
 3. The animation begins, replaying each commit's diff from that point forward.
 
@@ -52,7 +52,7 @@ Plug 'matthewalunni/nvim-gitmovie'
 
 | Command     | Description                                         |
 | ----------- | --------------------------------------------------- |
-| `:GitMovie` | Open commit picker and start animated diff playback |
+| `:GitFlix` | Open commit picker and start animated diff playback |
 
 ## Features
 
@@ -81,4 +81,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Inspiration
 
-GitMovie was inspired by the desire to better understand code evolution and visualize the development process in an intuitive, animated format.
+GitFlix was inspired by the desire to better understand code evolution and visualize the development process in an intuitive, animated format.

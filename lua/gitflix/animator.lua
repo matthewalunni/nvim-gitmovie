@@ -1,4 +1,4 @@
-local git = require("gitmovie.git")
+local git = require("gitflix.git")
 
 local M = {}
 
@@ -16,7 +16,7 @@ local S = {
 	status_win = nil,
 	top_buf = nil,
 	top_win = nil,
-	ns = vim.api.nvim_create_namespace("gitmovie"),
+	ns = vim.api.nvim_create_namespace("gitflix"),
 	paused = false,
 	cancel = false,
 	resume_fn = nil, -- called by resume() to continue paused chain
@@ -24,10 +24,10 @@ local S = {
 
 -- Define highlight groups
 local function setup_highlights()
-	vim.api.nvim_set_hl(0, "GitMovieDel",    { bg = "#4a0e0e", fg = "#ff6b6b", bold = true })
-	vim.api.nvim_set_hl(0, "GitMovieAdd",    { bg = "#0d2a0d", fg = "#69ff69", bold = true })
-	vim.api.nvim_set_hl(0, "GitMovieStatus", { bg = "#161b22", fg = "#8b949e" })
-	vim.api.nvim_set_hl(0, "GitMovieTopBar", { bg = "#0d1117", fg = "#c9d1d9" })
+	vim.api.nvim_set_hl(0, "GitFlixDel",    { bg = "#4a0e0e", fg = "#ff6b6b", bold = true })
+	vim.api.nvim_set_hl(0, "GitFlixAdd",    { bg = "#0d2a0d", fg = "#69ff69", bold = true })
+	vim.api.nvim_set_hl(0, "GitFlixStatus", { bg = "#161b22", fg = "#8b949e" })
+	vim.api.nvim_set_hl(0, "GitFlixTopBar", { bg = "#0d1117", fg = "#c9d1d9" })
 end
 
 -- Open or update the status window at the bottom
@@ -47,7 +47,7 @@ local function open_status_window()
 		focusable = false,
 		zindex = 51,
 	})
-	vim.api.nvim_win_set_option(S.status_win, "winhl", "Normal:GitMovieStatus")
+	vim.api.nvim_win_set_option(S.status_win, "winhl", "Normal:GitFlixStatus")
 end
 
 local function update_status(text)
@@ -75,7 +75,7 @@ local function open_top_bar()
 		focusable = false,
 		zindex = 51,
 	})
-	vim.wo[S.top_win].winhl = "Normal:GitMovieTopBar"
+	vim.wo[S.top_win].winhl = "Normal:GitFlixTopBar"
 end
 
 local function update_top_bar(filepath, commit_idx, total_commits)
@@ -103,13 +103,13 @@ local function open_file_window(filepath, lines)
 	end
 
 	-- Set buffer name
-	pcall(vim.api.nvim_buf_set_name, buf, "gitmovie://" .. filepath)
+	pcall(vim.api.nvim_buf_set_name, buf, "gitflix://" .. filepath)
 
 	if S.win and vim.api.nvim_win_is_valid(S.win) then
 		-- Reuse existing window, swap buffer
 		local old_buf = vim.api.nvim_win_get_buf(S.win)
 		vim.api.nvim_win_set_buf(S.win, buf)
-		-- Clean up old buffer if it's a gitmovie scratch buf
+		-- Clean up old buffer if it's a gitflix scratch buf
 		if old_buf ~= buf and vim.api.nvim_buf_is_valid(old_buf) then
 			pcall(vim.api.nvim_buf_delete, old_buf, { force = true })
 		end
@@ -130,10 +130,10 @@ local function open_file_window(filepath, lines)
 
 	-- Buffer-local keymaps
 	vim.api.nvim_buf_set_keymap(buf, "n", "q",
-		'<cmd>lua require("gitmovie.animator").stop()<CR>',
+		'<cmd>lua require("gitflix.animator").stop()<CR>',
 		{ noremap = true, silent = true })
 	vim.api.nvim_buf_set_keymap(buf, "n", "<Space>",
-		'<cmd>lua require("gitmovie.animator").toggle_pause()<CR>',
+		'<cmd>lua require("gitflix.animator").toggle_pause()<CR>',
 		{ noremap = true, silent = true })
 end
 
@@ -155,7 +155,7 @@ local function highlight_and_delete(buf, ns, line_nums, pause_ms, callback)
 	end
 	if S.cancel then return end
 
-	highlight_lines(buf, ns, line_nums, "GitMovieDel")
+	highlight_lines(buf, ns, line_nums, "GitFlixDel")
 
 	vim.defer_fn(function()
 		if S.cancel then return end
@@ -195,7 +195,7 @@ local function typewriter_lines(buf, insert_at, lines, _delay_ms, callback)
 		vim.api.nvim_buf_set_option(buf, "modifiable", true)
 		vim.api.nvim_buf_set_lines(buf, buf_line_pos, buf_line_pos + 1, false, { partial })
 		vim.api.nvim_buf_set_option(buf, "modifiable", false)
-		vim.api.nvim_buf_add_highlight(buf, S.ns, "GitMovieAdd", buf_line_pos, 0, -1)
+		vim.api.nvim_buf_add_highlight(buf, S.ns, "GitFlixAdd", buf_line_pos, 0, -1)
 		if S.win and vim.api.nvim_win_is_valid(S.win) then
 			vim.api.nvim_win_set_cursor(S.win, { buf_line_pos + 1, char_idx })
 		end
@@ -218,7 +218,7 @@ local function typewriter_lines(buf, insert_at, lines, _delay_ms, callback)
 		vim.api.nvim_buf_set_option(buf, "modifiable", true)
 		vim.api.nvim_buf_set_lines(buf, pos, pos, false, { "" })
 		vim.api.nvim_buf_set_option(buf, "modifiable", false)
-		vim.api.nvim_buf_add_highlight(buf, S.ns, "GitMovieAdd", pos, 0, -1)
+		vim.api.nvim_buf_add_highlight(buf, S.ns, "GitFlixAdd", pos, 0, -1)
 		if S.win and vim.api.nvim_win_is_valid(S.win) then
 			vim.api.nvim_win_set_cursor(S.win, { pos + 1, 0 })
 		end
@@ -380,7 +380,7 @@ local function animate_commit(callback)
 
 	if S.commit_idx > #S.commits then
 		-- Movie finished
-		update_status("GitMovie: replay finished  |  q quit")
+		update_status("GitFlix: replay finished  |  q quit")
 		return
 	end
 
@@ -450,7 +450,7 @@ function M.play_from(repo, commits, start_idx)
 	open_status_window()
 	open_top_bar()
 	update_status(string.format(
-		"GitMovie: loading commit %d/%d...",
+		"GitFlix: loading commit %d/%d...",
 		start_idx, #commits
 	))
 
@@ -491,7 +491,7 @@ end
 -- Public: pause animation
 function M.pause()
 	S.paused = true
-	update_status("GitMovie: PAUSED  |  <Space> resume  q quit")
+	update_status("GitFlix: PAUSED  |  <Space> resume  q quit")
 end
 
 -- Public: resume animation

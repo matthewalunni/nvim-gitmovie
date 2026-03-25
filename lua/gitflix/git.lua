@@ -10,7 +10,7 @@ function M.get_commits(repo)
 		"--date=short",
 	})
 	if vim.v.shell_error ~= 0 then
-		vim.notify("GitMovie: failed to read commits", vim.log.levels.ERROR)
+		vim.notify("GitFlix: failed to read commits", vim.log.levels.ERROR)
 		return {}
 	end
 	local commits = {}
