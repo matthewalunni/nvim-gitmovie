@@ -166,10 +166,18 @@ local function highlight_and_delete(buf, ns, line_nums, pause_ms, callback)
 
 	vim.defer_fn(function()
 		if S.cancel then return end
+		if S.paused then
+			S.resume_fn = function() highlight_and_delete(buf, ns, line_nums, 0, callback) end
+			return
+		end
 		local actual_dels = 0
 
 		local function delete_next(idx)
 			if S.cancel then return end
+			if S.paused then
+				S.resume_fn = function() delete_next(idx) end
+				return
+			end
 			if idx > #sorted then
 				vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
 				callback(actual_dels)
@@ -204,6 +212,10 @@ local function typewriter_lines(buf, insert_at, lines, _delay_ms, callback)
 
 	local function type_chars(line_str, char_idx, buf_line_pos, on_done)
 		if S.cancel then return end
+		if S.paused then
+			S.resume_fn = function() type_chars(line_str, char_idx, buf_line_pos, on_done) end
+			return
+		end
 		if char_idx > #line_str then
 			on_done()
 			return
@@ -222,6 +234,11 @@ local function typewriter_lines(buf, insert_at, lines, _delay_ms, callback)
 	end
 
 	local function insert_next(idx, pos)
+		if S.cancel then return end
+		if S.paused then
+			S.resume_fn = function() insert_next(idx, pos) end
+			return
+		end
 		if idx > #lines then
 			vim.defer_fn(function()
 				vim.api.nvim_buf_clear_namespace(buf, S.ns, 0, -1)
@@ -229,7 +246,6 @@ local function typewriter_lines(buf, insert_at, lines, _delay_ms, callback)
 			end, 300)
 			return
 		end
-		if S.cancel then return end
 
 		-- Insert empty line first, then fill it character by character
 		vim.api.nvim_buf_set_option(buf, "modifiable", true)
