@@ -145,7 +145,7 @@ local function highlight_lines(buf, ns, line_nums, hl_group)
 	end
 end
 
--- Highlight lines red, pause, then delete them
+-- Highlight lines red, pause, then delete them one at a time (bottom-to-top).
 -- line_nums: 0-indexed line numbers to delete
 -- callback(actual_dels) called after deletion with the count of lines actually removed
 local function highlight_and_delete(buf, ns, line_nums, pause_ms, callback)
@@ -157,22 +157,37 @@ local function highlight_and_delete(buf, ns, line_nums, pause_ms, callback)
 
 	highlight_lines(buf, ns, line_nums, "GitFlixDel")
 
+	-- After the initial pause (user sees the red highlights), delete lines
+	-- one by one from bottom to top so each removal is individually visible.
+	-- Adapt the per-line delay so total deletion time stays around 1.2s.
+	local sorted = vim.deepcopy(line_nums)
+	table.sort(sorted, function(a, b) return a > b end)
+	local del_delay = math.max(25, math.min(120, math.floor(1200 / #sorted)))
+
 	vim.defer_fn(function()
 		if S.cancel then return end
-		vim.api.nvim_buf_set_option(buf, "modifiable", true)
-		-- Delete lines in reverse order to preserve line numbers
-		local sorted = vim.deepcopy(line_nums)
-		table.sort(sorted, function(a, b) return a > b end)
 		local actual_dels = 0
-		for _, lnum in ipairs(sorted) do
+
+		local function delete_next(idx)
+			if S.cancel then return end
+			if idx > #sorted then
+				vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
+				callback(actual_dels)
+				return
+			end
+			local lnum = sorted[idx]
+			vim.api.nvim_buf_set_option(buf, "modifiable", true)
 			if lnum < vim.api.nvim_buf_line_count(buf) then
 				vim.api.nvim_buf_set_lines(buf, lnum, lnum + 1, false, {})
 				actual_dels = actual_dels + 1
 			end
+			vim.api.nvim_buf_set_option(buf, "modifiable", false)
+			vim.defer_fn(function()
+				delete_next(idx + 1)
+			end, del_delay)
 		end
-		vim.api.nvim_buf_set_option(buf, "modifiable", false)
-		vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
-		callback(actual_dels)
+
+		delete_next(1)
 	end, pause_ms)
 end
 
@@ -287,7 +302,7 @@ local function animate_hunk(buf, hunk, line_offset, callback)
 	local adds  = 0
 	for _, g in ipairs(add_groups) do adds = adds + #g.texts end
 
-	highlight_and_delete(buf, S.ns, del_positions, 800, function(actual_dels)
+	highlight_and_delete(buf, S.ns, del_positions, 600, function(actual_dels)
 		if S.cancel then return end
 		-- delta uses the actual deletion count so line_offset stays accurate
 		-- even if the bounds check skipped any out-of-range deletions.
