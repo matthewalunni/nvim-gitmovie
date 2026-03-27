@@ -10,6 +10,10 @@ GitFlix creates an animated visualization of your git history, showing each comm
 - **Red** for deleted lines (highlighted then removed)
 - **Gray** for context lines
 
+
+https://github.com/user-attachments/assets/d2c3c626-b489-44a7-98a3-2255ed7b8370
+
+
 ## Installation
 
 ### Using [lazy.nvim](https://github.com/folke/lazy.nvim)
