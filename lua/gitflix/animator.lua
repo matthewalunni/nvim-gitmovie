@@ -136,6 +136,15 @@ local function open_file_window(filepath, lines)
 	vim.api.nvim_buf_set_keymap(buf, "n", "<Space>",
 		'<cmd>lua require("gitflix.animator").toggle_pause()<CR>',
 		{ noremap = true, silent = true })
+	vim.api.nvim_buf_set_keymap(buf, "n", "h",
+		'<cmd>lua require("gitflix.animator").skip(-1)<CR>',
+		{ noremap = true, silent = true })
+	vim.api.nvim_buf_set_keymap(buf, "n", "l",
+		'<cmd>lua require("gitflix.animator").skip(1)<CR>',
+		{ noremap = true, silent = true })
+	vim.api.nvim_buf_set_keymap(buf, "n", "r",
+		'<cmd>lua require("gitflix.animator").toggle_direction()<CR>',
+		{ noremap = true, silent = true })
 end
 
 -- Highlight specific lines in the buffer
