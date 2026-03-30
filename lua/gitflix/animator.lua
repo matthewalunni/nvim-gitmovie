@@ -20,6 +20,7 @@ local S = {
 	paused = false,
 	cancel = false,
 	resume_fn = nil, -- called by resume() to continue paused chain
+	direction = 1, -- 1 = forward, -1 = reverse
 }
 
 -- Define highlight groups
@@ -470,7 +471,7 @@ local function animate_commit(callback)
 end
 
 -- Public: start playing from a given commit index
-function M.play_from(repo, commits, start_idx)
+function M.play_from(repo, commits, start_idx, direction)
 	M.stop() -- clean up any existing state
 
 	setup_highlights()
@@ -482,6 +483,7 @@ function M.play_from(repo, commits, start_idx)
 	S.paused = false
 	S.cancel = false
 	S.resume_fn = nil
+	S.direction = direction or 1
 
 	open_status_window()
 	open_top_bar()
